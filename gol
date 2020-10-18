@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-board_rows=20
-board_cols=20
+board_rows=14
+board_cols=39
 
 # http://www.fileformat.info/info/unicode/block/block_elements/images.htm
 BLOCK_FULL='\xE2\x96\x88'
@@ -53,8 +53,8 @@ function cell_should_live() {
 }
 
 function update_board_next_lifecycle() {
-  local row col newboard_cell_name cell_name ctrlFile updatedCellsFile threads=0 offset length
-  updatedCellsFile="$(mktemp)"
+  local updates_file="${1}"
+  local row col cell_name ctrlFile threads=0 offset length
   ctrlFile="$(mktemp)"
   for ((row = 0; row < board_rows; row++)); do
   	offset=0
@@ -63,16 +63,20 @@ function update_board_next_lifecycle() {
   	  if [[ "$((offset + length))" -gt "${board_cols}" ]]; then
   	    length="$((board_cols - offset))"
   	  fi
-      update_board_row_next_lifecycle "${row}" "${offset}" "${length}" "${updatedCellsFile}" "${ctrlFile}" &
+      update_board_row_next_lifecycle "${row}" "${offset}" "${length}" "${updates_file}" "${ctrlFile}" &
       threads=$((threads + 1))
       offset=$((offset + length))
     done
   done
   waitForThreads "${ctrlFile}" "${threads}"
+  local state
   while read line; do
-    ${line}
-  done < "${updatedCellsFile}"
-  rm -rf "${updatedCellsFile}"
+    row="$(echo "$line" | cut  -d' ' -f1)"
+    col="$(echo "$line" | cut  -d' ' -f2)"
+    state="$(echo "$line" | cut  -d' ' -f3)"
+    cell_name="$(cell_var_name "${row}" "${col}")"
+    export "${cell_name}=${state}"
+  done < "${updates_file}"
 }
 
 function update_board_row_next_lifecycle() {
@@ -86,10 +90,10 @@ function update_board_row_next_lifecycle() {
   	cell_name="$(cell_var_name "${row}" "${col}")"
     if cell_should_live "${row}" "${col}"; then
       if ! cell_alive "${row}" "${col}"; then
-        echo "export ${cell_name}=true" >> "${updatedCellsFile}"
+        echo "${row} ${col} true" >> "${updatedCellsFile}"
       fi
     elif cell_alive "${row}" "${col}"; then
-      echo "export ${cell_name}=false" >> "${updatedCellsFile}"
+      echo "${row} ${col} false" >> "${updatedCellsFile}"
     fi
   done
   echo "${row}" >> "${ctrlFile}"
@@ -116,10 +120,13 @@ function controlFileComplete() {
 }
 
 function run_life() {
+  local updates_file
   while true; do
+    updates_file="$(mktemp)"
   	#sleep 0.1
-  	update_board_next_lifecycle
-  	print_board
+  	update_board_next_lifecycle "${updates_file}"
+  	print_board_updates "${updates_file}"
+  	rm -rf "${updates_file}"
   done
 }
 
@@ -137,21 +144,85 @@ function print_board() {
   local r c block cell_name
   for ((r = 0; r < board_rows; r++)); do
     for ((c = 0; c < board_cols; c++)); do
-      block="${BLOCK_LIGHT_SHADE}"
-  	  if cell_alive "${r}" "${c}"; then
-  	  	block="${BLOCK_FULL}"
-      fi
-      printf "${block}${block}"
+      print_cell "${r}" "${c}"
   	done
   	printf "\n"
   done
 }
 
+function print_cell() {
+  local row="${1}"
+  local col="${2}"
+  block="${BLOCK_LIGHT_SHADE}"
+  if cell_alive "${row}" "${col}"; then
+    block="${BLOCK_FULL}"
+  fi
+ printf "${block}${block}"
+}
+
+function print_board_updates() {
+  local updates_file="${1}"
+  while read line; do
+    row="$(echo "$line" | cut  -d' ' -f1)"
+    col="$(echo "$line" | cut  -d' ' -f2)"
+    tput cup "${row}" "$((col*2))"
+    print_cell  "${row}" "${col}"
+  done < "${updates_file}"
+  tput cup "$(tput lines)" "0"
+}
+
+function create_initial_glider() {
+  set_cell_alive 0 2 true
+  set_cell_alive 1 0 true
+  set_cell_alive 1 2 true
+  set_cell_alive 2 1 true
+  set_cell_alive 2 2 true
+}
+
+function create_initial_glidergun() {
+  set_cell_alive 5 1 true
+  set_cell_alive 5 2 true
+  set_cell_alive 6 1 true
+  set_cell_alive 6 2 true
+
+  set_cell_alive 5 11 true
+  set_cell_alive 6 11 true
+  set_cell_alive 7 11 true
+  set_cell_alive 4 12 true
+  set_cell_alive 8 12 true
+  set_cell_alive 3 13 true
+  set_cell_alive 9 13 true
+  set_cell_alive 3 14 true
+  set_cell_alive 9 14 true
+  set_cell_alive 6 15 true
+  set_cell_alive 4 16 true
+  set_cell_alive 8 16 true
+  set_cell_alive 5 17 true
+  set_cell_alive 6 17 true
+  set_cell_alive 7 17 true
+  set_cell_alive 6 18 true
+
+  set_cell_alive 3 21 true
+  set_cell_alive 4 21 true
+  set_cell_alive 5 21 true
+  set_cell_alive 3 22 true
+  set_cell_alive 4 22 true
+  set_cell_alive 5 22 true
+  set_cell_alive 2 23 true
+  set_cell_alive 6 23 true
+  set_cell_alive 1 25 true
+  set_cell_alive 2 25 true
+  set_cell_alive 6 25 true
+  set_cell_alive 7 25 true
+
+  set_cell_alive 3 35 true
+  set_cell_alive 4 35 true
+  set_cell_alive 3 36 true
+  set_cell_alive 4 36 true
+}
+
+trap 'clear' EXIT
 init_board
-set_cell_alive 8 10 true
-set_cell_alive 9 8 true
-set_cell_alive 9 10 true
-set_cell_alive 10 9 true
-set_cell_alive 10 10 true
+create_initial_glidergun
 print_board
 run_life
