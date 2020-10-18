@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-board_rows=10
-board_cols=10
+board_rows=20
+board_cols=20
 
 # http://www.fileformat.info/info/unicode/block/block_elements/images.htm
 BLOCK_FULL='\xE2\x96\x88'
@@ -41,7 +41,7 @@ function cell_should_live() {
   	  [[ "${c}" -ge 0 ]] && [[ "${c}" -lt "${board_cols}" ]] || continue
   	  if [[ "${r}" == "${row}" ]] && [[ "${c}" == "${col}" ]]; then continue; fi
   	  if cell_alive "${r}" "${c}"; then
-  	  	neighbors=$((neighbors+1))
+  	  	neighbors=$((neighbors + 1))
   	  fi
   	done
   done
@@ -53,28 +53,71 @@ function cell_should_live() {
 }
 
 function update_board_next_lifecycle() {
-  local r c newboard_cell_name cell_name
-  for ((r = 0; r < board_rows; r++)); do
-    for ((c = 0; c < board_cols; c++)); do
-      newboard_cell_name="new_$(cell_var_name "${r}" "${c}")"
-      export "${newboard_cell_name}"=false
-      if cell_should_live "${r}" "${c}"; then
-      	export "${newboard_cell_name}"=true
+  local row col newboard_cell_name cell_name ctrlFile updatedCellsFile threads=0 offset length
+  updatedCellsFile="$(mktemp)"
+  ctrlFile="$(mktemp)"
+  for ((row = 0; row < board_rows; row++)); do
+  	offset=0
+  	while [[ "$((board_cols - offset))" -gt 0 ]]; do
+  	  length=10 # Each thread will handle an array of size 10
+  	  if [[ "$((offset + length))" -gt "${board_cols}" ]]; then
+  	    length="$((board_cols - offset))"
+  	  fi
+      update_board_row_next_lifecycle "${row}" "${offset}" "${length}" "${updatedCellsFile}" "${ctrlFile}" &
+      threads=$((threads + 1))
+      offset=$((offset + length))
+    done
+  done
+  waitForThreads "${ctrlFile}" "${threads}"
+  while read line; do
+    ${line}
+  done < "${updatedCellsFile}"
+  rm -rf "${updatedCellsFile}"
+}
+
+function update_board_row_next_lifecycle() {
+  local row="${1}"
+  local colStart="${2}"
+  local colLength="${3}"
+  local updatedCellsFile="${4}"
+  local ctrlFile="${5}"
+  local col cell_name
+  for ((col = colStart; col < colStart+colLength; col++)); do
+  	cell_name="$(cell_var_name "${row}" "${col}")"
+    if cell_should_live "${row}" "${col}"; then
+      if ! cell_alive "${row}" "${col}"; then
+        echo "export ${cell_name}=true" >> "${updatedCellsFile}"
       fi
-  	done
+    elif cell_alive "${row}" "${col}"; then
+      echo "export ${cell_name}=false" >> "${updatedCellsFile}"
+    fi
   done
-  for ((r = 0; r < board_rows; r++)); do
-    for ((c = 0; c < board_cols; c++)); do
-      cell_name="$(cell_var_name "${r}" "${c}")"
-      newboard_cell_name="new_$(cell_var_name "${r}" "${c}")"
-      export "${cell_name}"="${!newboard_cell_name}"
-  	done
+  echo "${row}" >> "${ctrlFile}"
+}
+
+function waitForThreads() {
+  local ctrlFile="${1}"
+  local threadCount="${2}"
+  while ! controlFileComplete "${ctrlFile}" "${threadCount}"; do
+  	sleep 0.1
   done
+  rm -rf "${ctrlFile}"
+}
+
+function controlFileComplete() {
+  local ctrlFile="${1}"
+  local expectedCount="${2}"
+  if [[ ! -f "${ctrlFile}" ]]; then
+  	return 1
+  fi
+  local count
+  count="$(wc -l "${ctrlFile}" | sed 's/^ *//g' | sed 's/  *.*//g')"
+  [[ "${count}" -ge "${expectedCount}" ]]
 }
 
 function run_life() {
   while true; do
-  	sleep 0.1
+  	#sleep 0.1
   	update_board_next_lifecycle
   	print_board
   done
@@ -105,10 +148,10 @@ function print_board() {
 }
 
 init_board
-set_cell_alive 0 2 true
-set_cell_alive 1 0 true
-set_cell_alive 1 2 true
-set_cell_alive 2 1 true
-set_cell_alive 2 2 true
+set_cell_alive 8 10 true
+set_cell_alive 9 8 true
+set_cell_alive 9 10 true
+set_cell_alive 10 9 true
+set_cell_alive 10 10 true
 print_board
 run_life
