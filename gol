@@ -10,7 +10,8 @@ BLOCK_LIGHT_SHADE='\xE2\x96\x91'
 function cell_alive() {
   local row="${1}"
   local col="${2}"
-  local cell_name="board_${row}_${col}"
+  local cell_name
+  cell_name="$(cell_var_name "${row}" "${col}")"
   [[ "${!cell_name}" == true ]]
 }
 
@@ -18,8 +19,65 @@ function set_cell_alive() {
   local row="${1}"
   local col="${2}"
   local alive="${3}"
-  local cell_name="board_${row}_${col}"
+  local cell_name
+  cell_name="$(cell_var_name "${row}" "${col}")"
   export "${cell_name}=${alive}"
+}
+
+function cell_var_name() {
+  local row="${1}"
+  local col="${2}"
+  echo "board_${row}_${col}"
+}
+
+function cell_should_live() {
+  local row="${1}"
+  local col="${2}"
+  local neighbors=0
+  local r c
+  for ((r = row-1; r <= row+1; r++)); do
+  	[[ "${r}" -ge 0 ]] && [[ "${r}" -lt "${board_rows}" ]] || continue
+    for ((c = col-1; c <= col+1; c++)); do
+  	  [[ "${c}" -ge 0 ]] && [[ "${c}" -lt "${board_cols}" ]] || continue
+  	  if [[ "${r}" == "${row}" ]] && [[ "${c}" == "${col}" ]]; then continue; fi
+  	  if cell_alive "${r}" "${c}"; then
+  	  	neighbors=$((neighbors+1))
+  	  fi
+  	done
+  done
+  if cell_alive "${row}" "${col}"; then
+    [[ "${neighbors}" -eq 3 ]] || [[ "${neighbors}" -eq 2 ]]
+  else
+  	[[ "${neighbors}" -eq 3 ]]
+  fi 
+}
+
+function update_board_next_lifecycle() {
+  local r c newboard_cell_name cell_name
+  for ((r = 0; r < board_rows; r++)); do
+    for ((c = 0; c < board_cols; c++)); do
+      newboard_cell_name="new_$(cell_var_name "${r}" "${c}")"
+      export "${newboard_cell_name}"=false
+      if cell_should_live "${r}" "${c}"; then
+      	export "${newboard_cell_name}"=true
+      fi
+  	done
+  done
+  for ((r = 0; r < board_rows; r++)); do
+    for ((c = 0; c < board_cols; c++)); do
+      cell_name="$(cell_var_name "${r}" "${c}")"
+      newboard_cell_name="new_$(cell_var_name "${r}" "${c}")"
+      export "${cell_name}"="${!newboard_cell_name}"
+  	done
+  done
+}
+
+function run_life() {
+  while true; do
+  	sleep 0.1
+  	update_board_next_lifecycle
+  	print_board
+  done
 }
 
 function init_board() {
@@ -47,4 +105,10 @@ function print_board() {
 }
 
 init_board
+set_cell_alive 0 2 true
+set_cell_alive 1 0 true
+set_cell_alive 1 2 true
+set_cell_alive 2 1 true
+set_cell_alive 2 2 true
 print_board
+run_life
