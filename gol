@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+
+board_rows=10
+board_cols=10
+
+# http://www.fileformat.info/info/unicode/block/block_elements/images.htm
+BLOCK_FULL='\xE2\x96\x88'
+BLOCK_LIGHT_SHADE='\xE2\x96\x91'
+
+function cell_alive() {
+  local row="${1}"
+  local col="${2}"
+  local cell_name="board_${row}_${col}"
+  [[ "${!cell_name}" == true ]]
+}
+
+function set_cell_alive() {
+  local row="${1}"
+  local col="${2}"
+  local alive="${3}"
+  local cell_name="board_${row}_${col}"
+  export "${cell_name}=${alive}"
+}
+
+function init_board() {
+  local r c
+  for ((r = 0; r < board_rows; r++)); do
+    for ((c = 0; c < board_cols; c++)); do
+  	  set_cell_alive "${r}" "${c}" false
+  	done
+  done
+}
+
+function print_board() {
+  clear
+  local r c block cell_name
+  for ((r = 0; r < board_rows; r++)); do
+    for ((c = 0; c < board_cols; c++)); do
+      block="${BLOCK_LIGHT_SHADE}"
+  	  if cell_alive "${r}" "${c}"; then
+  	  	block="${BLOCK_FULL}"
+      fi
+      printf "${block}${block}"
+  	done
+  	printf "\n"
+  done
+}
+
+init_board
+print_board
