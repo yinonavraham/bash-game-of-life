@@ -103,7 +103,7 @@ function waitForThreads() {
   local ctrlFile="${1}"
   local threadCount="${2}"
   while ! controlFileComplete "${ctrlFile}" "${threadCount}"; do
-  	sleep 0.1
+    sleep 0.1
   done
   rm -rf "${ctrlFile}"
 }
@@ -112,7 +112,7 @@ function controlFileComplete() {
   local ctrlFile="${1}"
   local expectedCount="${2}"
   if [[ ! -f "${ctrlFile}" ]]; then
-  	return 1
+    return 1
   fi
   local count
   count="$(wc -l "${ctrlFile}" | sed 's/^ *//g' | sed 's/  *.*//g')"
@@ -123,7 +123,6 @@ function run_life() {
   local updates_file
   while true; do
     updates_file="$(mktemp)"
-  	#sleep 0.1
   	update_board_next_lifecycle "${updates_file}"
   	print_board_updates "${updates_file}"
   	rm -rf "${updates_file}"
