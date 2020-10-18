@@ -36,19 +36,19 @@ function cell_should_live() {
   local neighbors=0
   local r c
   for ((r = row-1; r <= row+1; r++)); do
-  	[[ "${r}" -ge 0 ]] && [[ "${r}" -lt "${board_rows}" ]] || continue
+    [[ "${r}" -ge 0 ]] && [[ "${r}" -lt "${board_rows}" ]] || continue
     for ((c = col-1; c <= col+1; c++)); do
-  	  [[ "${c}" -ge 0 ]] && [[ "${c}" -lt "${board_cols}" ]] || continue
-  	  if [[ "${r}" == "${row}" ]] && [[ "${c}" == "${col}" ]]; then continue; fi
-  	  if cell_alive "${r}" "${c}"; then
-  	  	neighbors=$((neighbors + 1))
-  	  fi
-  	done
+      [[ "${c}" -ge 0 ]] && [[ "${c}" -lt "${board_cols}" ]] || continue
+      if [[ "${r}" == "${row}" ]] && [[ "${c}" == "${col}" ]]; then continue; fi
+      if cell_alive "${r}" "${c}"; then
+        neighbors=$((neighbors + 1))
+      fi
+    done
   done
   if cell_alive "${row}" "${col}"; then
     [[ "${neighbors}" -eq 3 ]] || [[ "${neighbors}" -eq 2 ]]
   else
-  	[[ "${neighbors}" -eq 3 ]]
+    [[ "${neighbors}" -eq 3 ]]
   fi 
 }
 
@@ -57,12 +57,12 @@ function update_board_next_lifecycle() {
   local row col cell_name ctrlFile threads=0 offset length
   ctrlFile="$(mktemp)"
   for ((row = 0; row < board_rows; row++)); do
-  	offset=0
-  	while [[ "$((board_cols - offset))" -gt 0 ]]; do
-  	  length=10 # Each thread will handle an array of size 10
-  	  if [[ "$((offset + length))" -gt "${board_cols}" ]]; then
-  	    length="$((board_cols - offset))"
-  	  fi
+    offset=0
+    while [[ "$((board_cols - offset))" -gt 0 ]]; do
+      length=10 # Each thread will handle an array of size 10
+      if [[ "$((offset + length))" -gt "${board_cols}" ]]; then
+        length="$((board_cols - offset))"
+      fi
       update_board_row_next_lifecycle "${row}" "${offset}" "${length}" "${updates_file}" "${ctrlFile}" &
       threads=$((threads + 1))
       offset=$((offset + length))
@@ -87,7 +87,7 @@ function update_board_row_next_lifecycle() {
   local ctrlFile="${5}"
   local col cell_name
   for ((col = colStart; col < colStart+colLength; col++)); do
-  	cell_name="$(cell_var_name "${row}" "${col}")"
+    cell_name="$(cell_var_name "${row}" "${col}")"
     if cell_should_live "${row}" "${col}"; then
       if ! cell_alive "${row}" "${col}"; then
         echo "${row} ${col} true" >> "${updatedCellsFile}"
@@ -123,9 +123,9 @@ function run_life() {
   local updates_file
   while true; do
     updates_file="$(mktemp)"
-  	update_board_next_lifecycle "${updates_file}"
-  	print_board_updates "${updates_file}"
-  	rm -rf "${updates_file}"
+    update_board_next_lifecycle "${updates_file}"
+    print_board_updates "${updates_file}"
+    rm -rf "${updates_file}"
   done
 }
 
@@ -133,8 +133,8 @@ function init_board() {
   local r c
   for ((r = 0; r < board_rows; r++)); do
     for ((c = 0; c < board_cols; c++)); do
-  	  set_cell_alive "${r}" "${c}" false
-  	done
+      set_cell_alive "${r}" "${c}" false
+    done
   done
 }
 
@@ -144,8 +144,8 @@ function print_board() {
   for ((r = 0; r < board_rows; r++)); do
     for ((c = 0; c < board_cols; c++)); do
       print_cell "${r}" "${c}"
-  	done
-  	printf "\n"
+    done
+    printf "\n"
   done
 }
 
